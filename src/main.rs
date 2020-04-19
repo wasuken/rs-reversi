@@ -215,6 +215,7 @@ fn main() {
 			println!("Failed input.");
 			continue
 		}
+		println!();
 		// check
 		if !check_put_piece(&map.to_vec(), ptrs[0].parse::<usize>().unwrap(),
 				  ptrs[1].parse::<usize>().unwrap(), &player) {
