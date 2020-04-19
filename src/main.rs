@@ -27,19 +27,16 @@ fn check_straight_line_same_piece_exist(map: &Vec<Vec<&str>>,
 		Player::FIRST => FIRST_STR,
 		Player::SECOND => SECOND_STR,
 	};
-	if (x as i32+x_) as usize > (SIZE as usize) ||
-		(y as i32+y_) as usize > (SIZE as usize) {
+	if (x as i32+x_) as usize >= (SIZE as usize) ||
+		(y as i32+y_) as usize >= (SIZE as usize) {
 			return false
 	}
 
 	if map[(x as i32+x_) as usize][(y as i32+y_) as usize] == player_str {
-		println!("success");
 		return true
 	}else if map[(x as i32+x_) as usize][(y as i32+y_) as usize] == EMPTY_STR {
-		println!("empty");
 		return false
 	}else {
-		println!("next");
 		return check_straight_line_same_piece_exist(map,
 													player,
 													(x as i32+x_) as usize,
@@ -91,6 +88,39 @@ fn check_put_piece(map: &Vec<Vec<&str>>, x: usize, y: usize, player: &Player) ->
 	}
 	return false
 }
+
+fn put_piece_effect_map(map: &mut Vec<Vec<&str>>, player: &Player, x: usize, y: usize, ptr: (i32, i32)){
+	let (x_, y_) = ptr;
+	let player_str = match player {
+		Player::FIRST => FIRST_STR,
+		Player::SECOND => SECOND_STR,
+	};
+	let another_player_str = match player {
+		Player::FIRST => SECOND_STR,
+		Player::SECOND => FIRST_STR,
+	};
+	let mut cur_x: i32 = x as i32 + x_;
+	let mut cur_y: i32 = y as i32 + y_;
+	let mut rep_ptrs: Vec<(usize, usize)> = Vec::new();
+	let mut put_flg = false;
+	while cur_x < SIZE && cur_x >= 0 && cur_y < SIZE && cur_y >= 0 {
+		if map[cur_x as usize][cur_y as usize] == player_str {
+			put_flg = true;
+			break
+		}else if map[cur_x as usize][cur_y as usize] == EMPTY_STR {
+			break
+		}else if map[cur_x as usize][cur_y as usize] == another_player_str {
+			rep_ptrs.push((cur_x as usize, cur_y as usize));
+		}
+		cur_x += x_;
+		cur_y += y_;
+	}
+	if put_flg {
+		for ptr in rep_ptrs {
+			map[ptr.0][ptr.1] = player_str;
+		}
+	}
+}
 // ピースの配置
 fn put_piece(map: &mut Vec<Vec<&str>>, x: usize, y: usize, player: &Player) {
 	let piece = match player {
@@ -98,6 +128,13 @@ fn put_piece(map: &mut Vec<Vec<&str>>, x: usize, y: usize, player: &Player) {
 		Player::SECOND => SECOND_STR
 	};
 	map[x][y] = piece;
+	for i in -1i32..2 {
+		for j in -1i32..2 {
+			if !(i == 0 && j == 0) {
+				put_piece_effect_map(map, player, x, y, (i, j))
+			}
+		}
+	}
 }
 fn create_default_map() -> Vec<Vec<&'static str>> {
 	let mut map: Vec<Vec<&str>> = Vec::new();
@@ -131,7 +168,6 @@ fn is_finish(map: &Vec<Vec<&str>>) -> bool {
 	}
 }
 fn main() {
-	env_logger::init();
 	// マップ
 	let mut map: Vec<Vec<&str>> = create_default_map();
 	// ターン変数
@@ -158,6 +194,7 @@ fn main() {
 		}
 		// Skip判定
 		if is_skip(&map, &player) {
+			println!("skip.");
 			continue
 		}
 		// map出力
@@ -168,6 +205,7 @@ fn main() {
 			println!("");
 		}
 		// 座標読み込み
+		println!("You can next input points is {:?}", pickup_points(&map, &player));
 		print!("input: ");
 		let mut s = String::new();
 		std::io::stdin().read_line(&mut s).ok();
@@ -175,13 +213,13 @@ fn main() {
 		let ptrs:Vec<&str> = s_rep.split(",").collect();
 		if ptrs.len() != 2 {
 			println!("Failed input.");
-			break;
+			continue
 		}
 		// check
 		if !check_put_piece(&map.to_vec(), ptrs[0].parse::<usize>().unwrap(),
 				  ptrs[1].parse::<usize>().unwrap(), &player) {
 			println!("Foul move.");
-			return
+			continue
 		}
 		// マップ反映
 		put_piece(&mut map, ptrs[0].parse::<usize>().unwrap(),
@@ -197,6 +235,28 @@ fn main() {
 #[cfg(test)]
 mod tests {
 	use crate::*;
+	#[test]
+	fn test_main(){
+		let mut map = create_default_map();
+		let mut player = Player::FIRST;
+		loop {
+			let ptrs = pickup_points(&map, &player);
+			put_piece(&mut map, ptrs[0].0, ptrs[0].1, &player);
+			player = match player {
+				Player::FIRST => Player::SECOND,
+				Player::SECOND => Player::FIRST,
+			};
+			if is_finish(&map) {
+				break
+			}
+		}
+	}
+	#[test]
+	fn test_put_piece(){
+		let mut map = create_default_map();
+		put_piece(&mut map, 2, 4, &Player::FIRST);
+		assert_eq!(true, map[3 as usize][4 as usize] == FIRST_STR);
+	}
     #[test]
     fn test_check_put_piece() {
 		let map = create_default_map();
